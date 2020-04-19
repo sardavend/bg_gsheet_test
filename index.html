@@ -1,0 +1,246 @@
+<!–– External Library Assets. CSS & Javascript ––>
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/bs4-4.1.1/dt-1.10.20/r-2.2.3/sp-1.0.1/sl-1.3.1/datatables.min.css"/>
+
+
+<!-- <script
+  src="https://code.jquery.com/jquery-3.4.1.slim.min.js"
+  integrity="sha256-pasqAKBDmFT4eHoN2ndd6lN370kFiGUFyTiUHWhU7k8="
+  crossorigin="anonymous"> -->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+
+</script>
+<script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/v/bs4-4.1.1/dt-1.10.20/r-2.2.3/sp-1.0.1/sl-1.3.1/datatables.min.js"></script>
+
+
+
+<script src="https://apis.google.com/js/api.js"></script>
+
+<!–– Custom code. HTML, CSS & Javascript ––>
+
+
+<body class="container fluid">
+    <div class="lds-heart"><div></div></div>
+
+  
+</body>
+
+
+
+<script>
+
+  const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest", "https://sheets.googleapis.com/$discovery/rest?version=v4"];
+  
+  function GSheetApp(spId, range) {
+  	this.spreadsheetId = spId
+  	this.range = range
+    //regex pattern used in the number of row's caculation
+    this.rangePattern = /(\d+)/g
+    // if the row number is greater than 100 then, datatables is set to server side processing
+    this.maxRow = 300
+    this.getRanges(range)
+    console.log(this.ranges)
+  	this.loadClient()
+  }
+
+  GSheetApp.prototype.loadClient = function() {
+      let self = this
+      gapi.load('client', async function() {
+          await gapi.client.init({discoveryDocs: DISCOVERY_DOCS})
+          gapi.client.setToken({ 'access_token': currentUser.connections.gsheet.accessToken })
+	      await self.renderRange()
+      })
+  }
+  GSheetApp.prototype.renderFileName= function (title) {
+      $('.card-title').text(title)
+  }
+  GSheetApp.prototype.renderRange = async function(){
+      const response = await this.getData(spreadsheetId, this.ranges[0])
+      if(response === null) {
+          this.tryAgain('Corrige las variables e intenta nuevamente');
+          return 
+      } 
+      this.setTableContainer()
+      this.renderFileName(response['title'])
+      this.configureAndRenderTable(response)
+  }
+  GSheetApp.prototype.getData = async function(sId, r){
+      try{
+          const response = await gapi.client.sheets.spreadsheets.values.get({
+              spreadsheetId: sId,
+              range: r
+          })
+          const responseMeta = await gapi.client.sheets.spreadsheets.get({
+              spreadsheetId:sId 
+          })
+          response['title'] = responseMeta.result.properties.title
+          return response
+      } catch (err) {
+          this.showMessage(err.result, 'error')
+          return null
+      }
+  }
+  GSheetApp.prototype.showMessage = function(response, type) {
+      switch(response.error.code) {
+          case 404:
+            swal("I didn't found anything",'Al parecer el Sheet ID no es valido o no existe!, probamos con otro?', type)
+            break
+          case 400:
+            swal("Invalid Range", "Existe algo mal en el rango especificado", type)
+            break
+          case 401:
+            swal("Shou Ryu Ken"," tu acces key a caducado, F5 para renovarlo")
+            break;
+          default:
+            swal('Error', "Game is Over, please contact the app developer (dev@sheetdeveloper)")
+      }
+  }
+  GSheetApp.prototype.configureAndRenderTable = function(response){
+      let dataSet = response.result.values
+      const cols = dataSet[0]
+      dataSet.shift()
+      let cols_objects = []
+      cols.forEach(function(col){
+          var col_obj = {}
+          col_obj.title = col
+          cols_objects.push(col_obj)
+       });
+        this.setLoading(false)
+       $('#range_table').DataTable({
+         data: dataSet,
+         columns: cols_objects,
+         language:{
+            "url": "//cdn.datatables.net/plug-ins/9dcbecd42ad/i18n/Spanish.json"
+         },
+         initComplete: function () {
+            this.api().columns().every( function () {
+                var column = this;
+                var select = $('<select><option value=""></option></select>')
+                    .appendTo( $(column.footer()).empty() )
+                    .on( 'change', function () {
+                        var val = $.fn.dataTable.util.escapeRegex(
+                            $(this).val()
+                        );
+ 
+                        column
+                            .search( val ? '^'+val+'$' : '', true, false )
+                            .draw();
+                    } );
+ 
+                column.data().unique().sort().each( function ( d, j ) {
+                    select.append( '<option value="'+d+'">'+d+'</option>' )
+                } );
+            } );
+        }
+        });
+
+  }
+  GSheetApp.prototype.setTableContainer = function() {
+      $('body').append(`
+        <div class="card border-dark mb-3">
+                <div class="card-header">The GSheetApp</div>
+                <div class="card-body text-dark">
+                    <h5 class="card-title"></h5>
+                    <div class="card-text">
+                        <table class="table table-hover" id="range_table" class="display" width="100%"></table>  
+                    </div>
+                </div>
+        </div>
+      `)
+
+  }
+  GSheetApp.prototype.tryAgain = function(message) {
+      $('body').remove('#range_table')
+      $('body').append(`
+      <div class="jumbotron">
+        <h1 class="display-4">Opps, ocurrio un error!</h1>
+        <p class="lead">${message}</p>
+        <hr class="my-4">
+      </div>
+      `)
+  }
+  GSheetApp.prototype.setLoading = function(state) {
+      $('.lds-heart').remove()
+  }
+  GSheetApp.prototype.getRanges = function(range) {
+    //Sheet1!C3:F4
+    const rangeMeta = range.match(this.rangePattern)
+    const lettersRange =  range.split('!')[1].match(/[aA-zZ]+/g)
+    const numOfRows = parseInt(rangeMeta[2]) - parseInt(rangeMeta[1])
+    if(numOfRows > this.maxRow) {
+      this.serverSide= true
+      this.ranges = [...Array(parseInt(numOfRows / 100)).keys()].map(r =>{
+        let startRange = parseInt(rangeMeta[1]) + (r * 100)
+        let endRange = startRange + 100
+        return `Sheet1!${lettersRange[0]}${startRange}:${lettersRange[1]}${endRange}`
+      })
+    } else {
+      this.ranges = [range]
+    }
+  }
+  new GSheetApp(spreadsheetId, range)
+
+</script>
+
+<style>
+.lds-heart {
+  margin: 0;
+  top: 30%;
+  left: 50%;
+  margin-right: -50%;
+  display: inline-block;
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  transform: rotate(45deg);
+  transform-origin: 40px 40px;
+}
+.lds-heart div {
+  top: 32px;
+  left: 32px;
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  background: rgb(80, 75, 75);
+  animation: lds-heart 1.2s infinite cubic-bezier(0.215, 0.61, 0.355, 1);
+}
+.lds-heart div:after,
+.lds-heart div:before {
+  content: " ";
+  position: absolute;
+  display: block;
+  width: 32px;
+  height: 32px;
+  background: rgb(53, 47, 47);
+}
+.lds-heart div:before {
+  left: -24px;
+  border-radius: 50% 0 0 50%;
+}
+.lds-heart div:after {
+  top: -24px;
+  border-radius: 50% 50% 0 0;
+}
+@keyframes lds-heart {
+  0% {
+    transform: scale(0.95);
+  }
+  5% {
+    transform: scale(1.1);
+  }
+  39% {
+    transform: scale(0.85);
+  }
+  45% {
+    transform: scale(1);
+  }
+  60% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(0.9);
+  }
+}
+
+
+</style>
