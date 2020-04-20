@@ -103,6 +103,7 @@
       cols.forEach(function(col){
           var col_obj = {}
           col_obj.title = col
+  				col_obj.defaultContent= "",
           cols_objects.push(col_obj)
        });
         this.setLoading(false)
@@ -112,6 +113,7 @@
          language:{
             "url": "//cdn.datatables.net/plug-ins/9dcbecd42ad/i18n/Spanish.json"
          },
+  			defaultContent: "",
          initComplete: function () {
             this.api().columns().every( function () {
                 var column = this;
@@ -178,7 +180,9 @@
       this.ranges = [range]
     }
   }
-  new GSheetApp(spreadsheetId, range)
+  $( document ).ready(function() {
+  	new GSheetApp(spreadsheetId, range)
+  })
 
 </script>
 
