@@ -3,7 +3,7 @@ bigpictures's application assignment
 
 ## Introduction
 
-Hello Big Pictures team, this document is in part documentation of the assignment's resolution and in part my feedback about the SDK,  I hope it's help to improve the product :D
+Hello Big Pictures team, this document is in part documentation of the assignment's resolution and in part my feedback about the SDK,  I hope it helps to improve the product :D
 
 ## About the assigment
 5 of 6 :s functionalities were implemented, I refactor the code and added the following improvements:
