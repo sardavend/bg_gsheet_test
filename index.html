@@ -103,11 +103,12 @@
       cols.forEach(function(col){
           var col_obj = {}
           col_obj.title = col
-  				col_obj.defaultContent= "",
+  				col_obj.defaultContent= ""
           cols_objects.push(col_obj)
        });
         this.setLoading(false)
        $('#range_table').DataTable({
+  			 responsive: true,
          data: dataSet,
          columns: cols_objects,
          language:{
@@ -180,9 +181,8 @@
       this.ranges = [range]
     }
   }
-  $( document ).ready(function() {
-  	new GSheetApp(spreadsheetId, range)
-  })
+  new GSheetApp(spreadsheetId, range)
+
 
 </script>
 
